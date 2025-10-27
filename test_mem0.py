@@ -28,7 +28,7 @@ def add_memory():
         },
     ]
 
-    mem0.add(messages_formatted, user_id="Masum")
+    mem0.add(messages_formatted, user_id="David")
 
 def get_memory_by_query():
     mem0 = MemoryClient()
