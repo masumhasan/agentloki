@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Agent Status</title>
+    <style>
+      :root {
+        --ok: #16a34a;
+        --bad: #ef4444;
+        --bg: #0f172a;
+        --card: #0b1220;
+        --muted: #94a3b8;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: Inter, Segoe UI, Roboto, system-ui, -apple-system, Arial;
+        background: linear-gradient(180deg, #071127 0%, #061021 100%);
+        color: #e6eef8;
+      }
+      .wrap {
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
+      .card {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(255, 255, 255, 0.01)
+        );
+        border-radius: 12px;
+        padding: 28px;
+        width: 420px;
+        box-shadow: 0 6px 24px rgba(2, 6, 23, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        letter-spacing: 0.2px;
+      }
+      p.lead {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .indicator {
+        width: 64px;
+        height: 64px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: #001215;
+        box-shadow: inset 0 -4px 10px rgba(0, 0, 0, 0.25);
+      }
+      .indicator.active {
+        background: linear-gradient(180deg, var(--ok), #0ea56e);
+        color: #042112;
+      }
+      .indicator.inactive {
+        background: linear-gradient(180deg, #ffd6d6, var(--bad));
+        color: #3b0303;
+      }
+      .meta {
+        flex: 1;
+      }
+      .meta .state {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+      .meta .since {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      button {
+        background: #0b2033;
+        color: #dff3ff;
+        border: 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+      }
+      small {
+        display: block;
+        color: var(--muted);
+        margin-top: 12px;
+        font-size: 12px;
+      }
+      label {
+        font-size: 12px;
+        color: var(--muted);
+        display: block;
+        margin-top: 12px;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.02);
+        color: inherit;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card" role="region" aria-live="polite">
+        <h1>Agent status</h1>
+        <p class="lead">
+          Shows whether the agent is active. You can simulate locally or poll an
+          API endpoint.
+        </p>
+
+        <div class="status-row">
+          <div id="indicator" class="indicator inactive" aria-hidden="true">
+            OFF
+          </div>
+          <div class="meta">
+            <div id="stateText" class="state">Inactive</div>
+            <div id="sinceText" class="since">Last change: —</div>
+            <div class="controls">
+              <button id="toggleBtn" type="button">Toggle (simulate)</button>
+              <button id="checkBtn" class="ghost" type="button">
+                Check API now
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <label for="url"
+          >Status endpoint (GET returns { "active": true/false })</label
+        >
+        <input
+          id="url"
+          type="text"
+          placeholder="e.g. http://localhost:4000/agent/status"
+        />
+
+        <div style="display: flex; gap: 8px; margin-top: 10px">
+          <button id="startPoll" class="ghost" type="button">
+            Start polling (5s)
+          </button>
+          <button id="stopPoll" class="ghost" type="button" disabled>
+            Stop polling
+          </button>
+        </div>
+
+        <small
+          >Tip: If you don't have an endpoint, use the Toggle button to simulate
+          status changes.</small
+        >
+      </div>
+    </div>
+
+    <script>
+      // Minimal client-side status UI. Save as index.html.
+      const indicator = document.getElementById("indicator");
+      const stateText = document.getElementById("stateText");
+      const sinceText = document.getElementById("sinceText");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const checkBtn = document.getElementById("checkBtn");
+      const urlInput = document.getElementById("url");
+      const startPollBtn = document.getElementById("startPoll");
+      const stopPollBtn = document.getElementById("stopPoll");
+
+      let state = { active: false, changedAt: null };
+      let pollInterval = null;
+      const POLL_MS = 5000;
+
+      function render() {
+        const active = state.active;
+        indicator.classList.toggle("active", active);
+        indicator.classList.toggle("inactive", !active);
+        indicator.textContent = active ? "ON" : "OFF";
+        stateText.textContent = active ? "Active" : "Inactive";
+        sinceText.textContent = state.changedAt
+          ? "Last change: " + new Date(state.changedAt).toLocaleString()
+          : "Last change: —";
+      }
+
+      function setState(active) {
+        state.active = !!active;
+        state.changedAt = Date.now();
+        render();
+      }
+
+      toggleBtn.addEventListener("click", () => {
+        setState(!state.active);
+      });
+
+      async function fetchStatusOnce() {
+        const url = urlInput.value.trim();
+        if (!url) {
+          alert("Enter a status endpoint URL first.");
+          return;
+        }
+        checkBtn.disabled = true;
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const json = await res.json();
+          // Expecting { "active": true } or { "active": false }
+          if (typeof json.active === "boolean") {
+            setState(json.active);
+          } else {
+            throw new Error('Response missing boolean "active" field');
+          }
+        } catch (err) {
+          alert("Failed to fetch status: " + err.message);
+        } finally {
+          checkBtn.disabled = false;
+        }
+      }
+
+      checkBtn.addEventListener("click", fetchStatusOnce);
+
+      function startPolling() {
+        const url = urlInput.value.trim();
+        if (!url) {
+          alert("Enter a status endpoint URL first.");
+          return;
+        }
+        if (pollInterval) return;
+        // do initial check immediately
+        fetchStatusOnce();
+        pollInterval = setInterval(fetchStatusOnce, POLL_MS);
+        startPollBtn.disabled = true;
+        stopPollBtn.disabled = false;
+        startPollBtn.textContent = "Polling...";
+      }
+
+      function stopPolling() {
+        if (!pollInterval) return;
+        clearInterval(pollInterval);
+        pollInterval = null;
+        startPollBtn.disabled = false;
+        stopPollBtn.disabled = true;
+        startPollBtn.textContent = "Start polling (5s)";
+      }
+
+      startPollBtn.addEventListener("click", startPolling);
+      stopPollBtn.addEventListener("click", stopPolling);
+
+      // initial render
+      render();
+    </script>
+  </body>
+</html>
