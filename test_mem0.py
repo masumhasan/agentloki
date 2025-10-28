@@ -5,7 +5,7 @@ import json
 
 
 load_dotenv()
-user_name = 'David'
+user_name = 'Masum'
 mem0 = MemoryClient()
 
 def add_memory():

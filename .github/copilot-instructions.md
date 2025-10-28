@@ -1,7 +1,9 @@
 ## Purpose
+
 Short, actionable guidance for AI coding agents working in this repo (agentloki). Focus: where to look, conventions to follow, and quick run/debug steps.
 
 ## Quick start (developer)
+
 - Create and activate a Python venv, then install dependencies:
   - See `requirements.txt` for required packages (LiveKit agents & plugins, mem0, duckduckgo, langchain_community, python-dotenv).
 - Copy your secrets into a `.ENV` file (or set env vars):
@@ -11,6 +13,7 @@ Short, actionable guidance for AI coding agents working in this repo (agentloki)
 - Run the agent with: `python agent.py` or `python agent2.py` (both call `agents.cli.run_app`).
 
 ## Big-picture architecture
+
 - Entry points: `agent.py` and `agent2.py` — both create a LiveKit `Agent` subclass and start an `AgentSession`.
 - Tools: `tools.py` contains helper functions decorated with `@function_tool()` (LiveKit pattern). Example: `get_weather(context, city)` returns a string.
 - Prompts and behavior: `prompts.py` (and `prompts2.py`) define `AGENT_INSTRUCTION` and `SESSION_INSTRUCTION` used as agent instructions/persona.
@@ -21,6 +24,7 @@ Short, actionable guidance for AI coding agents working in this repo (agentloki)
 - Memory: `agent2.py` shows usage of `mem0` (`AsyncMemoryClient`) to load/save chat context.
 
 ## Project-specific conventions (important to follow)
+
 - Tool functions must use LiveKit's `@function_tool()` and accept a `context` first argument (see `tools.py`). Return values should be strings; the codebase expects stringified tool outputs.
 - Dynamic MCP tools are converted to `FunctionTool` objects by `mcp_client.util.MCPUtil.to_function_tool` and then decorated via `livekit.agents.llm.function_tool()` in `mcp_client.agent_tools._create_decorated_tool`.
   - When adding or testing MCP flows, prefer `MCPServerSse` (see `mcp_client/server.py`) and set `cache_tools_list=True` when server tools are stable.
@@ -28,12 +32,14 @@ Short, actionable guidance for AI coding agents working in this repo (agentloki)
 - When registering tools dynamically, code uses `agent._tools` (list) — tests and code assume this attribute exists.
 
 ## Useful examples to copy from
+
 - Registering MCP tools + creating agent: see `agent2.py` lines where `MCPToolsIntegration.create_agent_with_tools` is used to instantiate `Assistant` with MCP tools.
 - Tool signature example (from `tools.py`):
   - async def get_weather(context: RunContext, city: str) -> str
 - MCP tool invocation flow: `MCPUtil.invoke_tool` serializes kwargs to JSON and expects server responses with `content` list; conversion to string happens in `mcp_client/util.py`.
 
 ## Developer workflows & debugging
+
 - Install: `python -m pip install -r requirements.txt` (use your venv's python executable).
 - Run an agent for local debugging: `python agent2.py` — watch logs. Enable verbose logging by adding `import logging; logging.basicConfig(level=logging.DEBUG)` near entrypoint or set environment-driven logging in your runner.
 - Test mem0 client: `python test_mem0.py` to validate memory reads/writes.
@@ -43,10 +49,12 @@ Short, actionable guidance for AI coding agents working in this repo (agentloki)
   - MCP server connectivity: verify `N8N_MCP_SERVER_URL` and inspect `mcp_client/server.py` logs.
 
 ## When modifying or adding tools
+
 - Follow `tools.py` patterns: decorate with `@function_tool()`, first arg `context`, return a string (or something JSON-serializable that the agent expects).
 - If adding MCP-exported tools, ensure JSON schema in the MCP tool is accurate. The conversion code maps JSON schema types to Python types (`mcp_client/agent_tools.py` type_map).
 
 ## What to look at first when you arrive
+
 - `agent2.py` — shows the most complete integration: memory + MCP + dynamic tools.
 - `mcp_client/` — essential for understanding cross-component tool discovery and invocation.
 - `tools.py` and `prompts.py` — examples of tool implementations and persona instructions.
